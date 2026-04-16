@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>情緒基地 v10 - 完整穩定版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400&display=swap');
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #F0F0F0; overflow-x: hidden; }
+        .hidden { display: none; }
+        .patchwork { position: absolute; inset: 0; z-index: 0; }
+        .shape-flat { position: absolute; opacity: 0.8; transition: all 1s ease; }
+        .rain { position: absolute; width: 1.5px; height: 15px; background: rgba(255,255,255,0.6); top: -20px; animation: fall 0.8s linear infinite; z-index: 10; }
+        @keyframes fall { to { transform: translateY(100vh); } }
+        .sun-ray { position: absolute; top: 0; right: 0; width: 100%; height: 100%; background: radial-gradient(circle at 90% 10%, rgba(255,223,128,0.3) 0%, transparent 60%); z-index: 5; animation: shine 3s infinite alternate; }
+        @keyframes shine { from { opacity: 0.3; } to { opacity: 0.6; } }
+        .cloud-flat { position: absolute; background: rgba(255,255,255,0.5); border-radius: 40px; z-index: 5; animation: float-flat 25s linear infinite; }
+        @keyframes float-flat { from { left: -100px; } to { left: 110vw; } }
+        .msg-bubble { background-color: rgba(255, 255, 255, 0.95); border: 1px solid rgba(0,0,0,0.05); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .decor-item { transition: all 1s ease; opacity: 0; transform: translateY(20px); z-index: 15; }
+        .decor-show { opacity: 1; transform: translateY(0); }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <div id="home-page" class="flex flex-col items-center p-6 max-w-md mx-auto">
+        <header class="mt-10 mb-6 text-center">
+            <h1 class="text-2xl tracking-[0.4em] font-light text-gray-600">情緒基地</h1>
+            <p class="text-[10px] mt-2 text-gray-400">今天的你，也值得被好好照顧</p>
+        </header>
+
+        <div class="w-full bg-white rounded-[2.5rem] p-8 shadow-sm space-y-6 border border-gray-100">
+            <input id="user-nickname" type="text" placeholder="輸入匿名暱稱" class="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-1 focus:ring-gray-200">
+
+            <div class="bg-gray-50 p-4 rounded-3xl text-center">
+                <p class="text-[10px] text-gray-400 mb-3 tracking-widest">今日心情簽到</p>
+                <div class="flex justify-around">
+                    <button onclick="setMood('tired')" class="text-2xl hover:scale-125 transition">😮‍💨</button>
+                    <button onclick="setMood('good')" class="text-2xl hover:scale-125 transition">😊</button>
+                    <button onclick="setMood('calm')" class="text-2xl hover:scale-125 transition">☁️</button>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <p class="text-[10px] font-bold text-gray-300 tracking-widest uppercase">Daily Tasks</p>
+                <div class="p-4 rounded-2xl border border-gray-50 bg-gray-50/30">
+                    <p class="text-xs text-gray-500 mb-2">任務 1：寫下今天覺得感謝的一件事</p>
+                    <button id="task1-btn" onclick="triggerTask(1)" class="w-full py-2 bg-[#91A3B0] text-white text-[10px] rounded-xl">點擊打卡領獎</button>
+                </div>
+                <div class="p-4 rounded-2xl border border-gray-50 bg-gray-50/30">
+                    <p class="text-xs text-gray-500 mb-2">任務 2：說一句鼓勵自己的話</p>
+                    <button id="task2-btn" onclick="triggerTask(2)" class="w-full py-2 bg-[#B784A7] text-white text-[10px] rounded-xl">點擊打卡領獎</button>
+                </div>
+            </div>
+
+            <div class="space-y-2 pt-2">
+                <button onclick="checkAndEnter('solo')" class="w-full py-4 bg-gray-100 rounded-2xl text-gray-600 text-sm">個人房間</button>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="checkAndEnter('friends')" class="py-4 bg-gray-100 rounded-2xl text-gray-600 text-sm">好友房</button>
+                    <button onclick="checkAndEnter('match')" class="py-4 bg-gray-100 rounded-2xl text-gray-600 text-sm">匹配房</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="room-page" class="hidden min-h-screen flex flex-col relative overflow-hidden transition-all duration-1000">
+        <div id="bg-patchwork" class="patchwork"></div>
+        <div id="weather-layer" class="absolute inset-0 pointer-events-none z-10"></div>
+
+        <nav class="p-5 flex justify-between items-center text-white z-20 bg-black/10 backdrop-blur-md">
+            <button onclick="exitRoom()" class="text-xs opacity-80">✕ 返回</button>
+            <div class="text-center">
+                <h2 id="room-display-name" class="text-sm font-light tracking-widest">房間</h2>
+                <p id="user-display-name" class="text-[10px] opacity-70"></p>
+            </div>
+            <button id="share-btn" onclick="copyLink()" class="bg-white/20 px-3 py-1 rounded-full text-[10px]">分享連結</button>
+        </nav>
+
+        <div id="ai-bubble" class="mx-6 mt-4 p-4 bg-white/10 backdrop-blur-md rounded-2xl text-white text-xs font-light z-20">環境感應中...</div>
+        <div id="chat-content" class="flex-1 overflow-y-auto p-6 space-y-4 z-20"></div>
+
+        <div id="decor-1" class="decor-item absolute bottom-28 left-8 text-4xl">🪴</div>
+        <div id="decor-2" class="decor-item absolute bottom-28 right-12 text-3xl">🕯️</div>
+
+        <div class="p-6 z-20">
+            <div class="bg-white rounded-[2rem] p-2 flex items-center shadow-2xl">
+                <label class="px-3 cursor-pointer">🖼️<input type="file" class="hidden" onchange="uploadImg(this)"></label>
+                <input id="msg-input" type="text" placeholder="說點什麼..." class="flex-1 bg-transparent border-none text-sm focus:ring-0">
+                <button onclick="pushMsg()" class="bg-gray-800 text-white px-5 py-2 rounded-full text-xs">送出</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let userData = { nickname: "", mood: "calm", task1: false, task2: false };
+        let roomData = { solo: [], friends: [], match: [] };
+        let currentMode = "";
+
+        // 當頁面載入時檢查是否有網址分享參數
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const modeParam = urlParams.get('mode');
+            if (modeParam && (modeParam === 'friends' || modeParam === 'match')) {
+                document.getElementById('user-nickname').value = "訪客_" + Math.random().toString(36).substr(7);
+                setTimeout(() => {
+                    checkAndEnter(modeParam);
+                    alert("✨ 已進入好友分享的房間");
+                }, 500);
+            }
+        };
+
+        function setMood(m) { userData.mood = m; alert("心情已記錄"); }
+
+        function triggerTask(num) {
+            const q = num === 1 ? "任務 1：寫下今天覺得感謝的一件事..." : "任務 2：說一句鼓勵自己的話...";
+            let ans = prompt(q);
+            if(ans && ans.trim().length > 0) {
+                if(num === 1) {
+                    userData.task1 = true;
+                    document.getElementById('task1-btn').innerText = "已領取：植物 🌱";
+                    document.getElementById('task1-btn').classList.replace('bg-[#91A3B0]', 'bg-gray-400');
+                } else {
+                    userData.task2 = true;
+                    document.getElementById('task2-btn').innerText = "已領取：香氛 🕯️";
+                    document.getElementById('task2-btn').classList.replace('bg-[#B784A7]', 'bg-gray-400');
+                }
+                alert("完成！裝飾已解鎖。");
+            }
+        }
+
+        // 強大的複製分享功能 (相容各平台)
+        function copyLink() {
+            const baseUrl = window.location.origin + window.location.pathname;
+            const shareUrl = `${baseUrl}?mode=${currentMode}`;
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(shareUrl).then(() => {
+                    alert("✅ 連結已複製！現在可以去貼上給朋友囉。");
+                }).catch(() => fallbackCopy(shareUrl));
+            } else {
+                fallbackCopy(shareUrl);
+            }
+        }
+
+        function fallbackCopy(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            document.body.appendChild(textArea);
+            textArea.focus(); textArea.select();
+            try {
+                document.execCommand('copy');
+                alert("✅ 連結已複製！");
+            } catch (err) {
+                prompt("複製失敗，請手動複製下方網址：", text);
+            }
+            document.body.removeChild(textArea);
+        }
+
+        function checkAndEnter(mode) {
+            const nick = document.getElementById('user-nickname').value;
+            if(!nick) { alert("請先輸入暱稱"); return; }
+            userData.nickname = nick; currentMode = mode;
+            document.getElementById('home-page').classList.add('hidden');
+            document.getElementById('room-page').classList.remove('hidden');
+            updateVisuals(mode);
+            renderMessages();
+        }
+
+        function updateVisuals(mode) {
+            const bg = document.getElementById('bg-patchwork');
+            const weather = document.getElementById('weather-layer');
+            const ai = document.getElementById('ai-bubble');
+            let colors = mode === 'solo' ? ['#91A3B0', '#778899'] : (mode === 'friends' ? ['#B784A7', '#D4A5A5'] : ['#A3B18A', '#588157']);
+            bg.innerHTML = `<div class="shape-flat w-[120%] h-[60%] top-[-10%] left-[-10%]
